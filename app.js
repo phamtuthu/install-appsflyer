@@ -13,12 +13,17 @@ app.get("/", (req, res) => {
 });
 
 app.post("/bx24-event-handler", async (req, res) => {
-  console.log("📥 Incoming request:", req.body); // Log toàn bộ request để debug
+  console.log("📥 Incoming request body:", JSON.stringify(req.body, null, 2));
+
+  if (!req.body || Object.keys(req.body).length === 0) {
+    console.error("❌ Error: Request body is empty.");
+    return res.status(400).json({ error: "Invalid request: Request body is empty." });
+  }
 
   const callData = req.body.data;
-  
+
   if (!callData || !callData.CALL_ID) {
-    console.error("❌ Error: CALL_ID is missing or request body is invalid.", req.body);
+    console.error("❌ Error: CALL_ID is missing or request body is invalid.", JSON.stringify(req.body, null, 2));
     return res.status(400).json({ error: "Invalid request: Missing CALL_ID." });
   }
 
