@@ -88,7 +88,8 @@ async function updateContact(contactId, callDuration, callStatus, lastCallDate) 
   };
 
   console.log(`📌 Updating Contact ID: ${contactId}`, fieldsToUpdate);
-  const response = await bitrixRequest(`/crm.contact.update.json/?ID=${contactId}`, "POST", { fields: fieldsToUpdate });
+  const response = await bitrixRequest("POST", "crm.contact.update", { ID: contactId, fields: fieldsToUpdate });
+  
   console.log("📌 Update Contact Response:", response);
 }
 
