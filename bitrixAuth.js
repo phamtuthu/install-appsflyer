@@ -32,21 +32,25 @@ async function ensureValidToken() {
 }
 
 // Gửi request tới Bitrix24
-async function bitrixRequest(method, endpoint, data = {}) {
-    try {
-        const token = await ensureValidToken();
-        const url = `${process.env.BITRIX_DOMAIN}/rest/${endpoint}`;
+const axios = require("axios");
 
+async function bitrixRequest(method, httpMethod = "POST", params = {}) {
+    try {
+        const url = `${process.env.BITRIX_DOMAIN}/rest/${process.env.BITRIX_AUTH_TOKEN}${method}`;
         const response = await axios({
-            method: method.toUpperCase(),
-            url,
-            params: method.toUpperCase() === "GET" ? { auth: token, ...data } : { auth: token },
-            data: method.toUpperCase() === "POST" ? data : undefined,
+            method: httpMethod,
+            url: url,
+            data: params,
+            headers: { "Content-Type": "application/json" },
         });
+
+        if (response.data.error) {
+            throw new Error(`❌ Bitrix API error: ${response.data.error_description || response.data.error}`);
+        }
 
         return response.data;
     } catch (error) {
-        console.error("❌ Bitrix API error:", error.response?.data || error.message);
+        console.error(`❌ Bitrix API request failed: ${error.message}`);
         throw error;
     }
 }
