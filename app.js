@@ -1,6 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const { bitrixRequest } = require("./bitrixAuth");
+const bitrixRequest = require("./bitrixAuth"); // ✅ Đúng cách
 
 const app = express();
 app.use(bodyParser.json());
