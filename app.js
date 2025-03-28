@@ -14,8 +14,15 @@ app.get("/", (req, res) => {
 });
 
 // 📌 Xử lý webhook từ Bitrix24
+// Hỗ trợ JSON
+app.use(express.json());
+
+// 🔥 Thêm middleware để hỗ trợ x-www-form-urlencoded
+app.use(express.urlencoded({ extended: true }));
+
 app.post("/bx24-event-handler", async (req, res) => {
-  console.log("📥 Incoming request body:", JSON.stringify(req.body, null, 2));
+  console.log("📥 Headers:", req.headers);
+  console.log("📥 Raw request body:", req.body);
 
   if (!req.body || Object.keys(req.body).length === 0) {
     console.error("❌ Error: Request body is empty.");
@@ -23,18 +30,15 @@ app.post("/bx24-event-handler", async (req, res) => {
   }
 
   const callData = req.body.data;
+  console.log("📞 Extracted callData:", callData);
 
   if (!callData || !callData.CALL_ID) {
-    console.error("❌ Error: CALL_ID is missing or request body is invalid.", JSON.stringify(req.body, null, 2));
+    console.error("❌ Error: CALL_ID is missing.");
     return res.status(400).json({ error: "Invalid request: Missing CALL_ID." });
   }
 
   console.log(`📞 Received call event for CALL_ID: ${callData.CALL_ID}`);
-  requestQueue.push({ callData, res });
-
-  if (!isProcessing) {
-    processNextRequest();
-  }
+  res.send("✅ Data received successfully.");
 });
 
 // ⏳ Xử lý từng request trong hàng đợi
