@@ -31,4 +31,4 @@ async function ensureValidToken() {
     return accessToken;
 }
 
-module.exports = { ensureValidToken };
+module.exports = bitrixRequest; // Default export
