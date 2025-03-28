@@ -17,6 +17,8 @@ app.get("/", (req, res) => {
 
 // Xử lý POST từ Bitrix24
 app.post("/bx24-event-handler", (req, res) => {
+  console.log("Received request:", req.body);
+    res.send("Request received!");
   const callEndData = req.body.data;
   const callId = callEndData.CALL_ID;
 
