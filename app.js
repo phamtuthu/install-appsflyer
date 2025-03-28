@@ -29,7 +29,7 @@ app.post("/bx24-event-handler", async (req, res) => {
 
   try {
     // 🔥 Bước 1: Lấy thông tin cuộc gọi từ Bitrix
-    const callStats = await bitrixRequest(`/voximplant.statistic.get/?FILTER[CALL_ID]=${callId}`);
+    const callStats = await bitrixRequest("GET", "voximplant.statistic.get", { "FILTER[CALL_ID]": callId });
     console.log("📊 Bitrix call stats:", callStats);
 
     if (!callStats?.result?.length) {
@@ -49,7 +49,7 @@ app.post("/bx24-event-handler", async (req, res) => {
     if (CRM_ENTITY_TYPE === "DEAL") {
       await updateDeal(CRM_ENTITY_ID, CALL_FAILED_REASON, CALL_DURATION, CALL_START_DATE);
     } else if (CRM_ENTITY_TYPE === "CONTACT") {
-      const dealData = await bitrixRequest(`/crm.deal.list/?FILTER[CONTACT_ID]=${CRM_ENTITY_ID}`);
+      const dealData = await bitrixRequest("GET", "crm.deal.list", { "FILTER[CONTACT_ID]": CRM_ENTITY_ID });
       console.log("📋 Deals linked to Contact:", dealData);
 
       if (dealData?.result?.length) {
