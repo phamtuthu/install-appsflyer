@@ -75,7 +75,7 @@ async function updateDeal(dealId, callFailedCode, callDuration, callStartDate) {
   };
 
   console.log(`📌 Updating Deal ID: ${dealId}`, fieldsToUpdate);
-  const response = await bitrixRequest(`/crm.deal.update.json/?ID=${dealId}`, "POST", { fields: fieldsToUpdate });
+  await bitrixRequest("POST", "crm.deal.update", { ID: dealId, fields: fieldsToUpdate });
   console.log("📌 Update Deal Response:", response);
 }
 
