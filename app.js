@@ -13,14 +13,16 @@ app.get("/", (req, res) => {
 });
 
 app.post("/bx24-event-handler", async (req, res) => {
-  const callData = req.body.data;
-  const callId = callData.CALL_ID;
+  console.log("📥 Incoming request:", req.body); // Log toàn bộ request để debug
 
-  if (!callId) {
-    console.error("❌ Error: Missing CALL_ID in request.");
-    return res.status(400).send("Missing CALL_ID.");
+  const callData = req.body.data;
+  
+  if (!callData || !callData.CALL_ID) {
+    console.error("❌ Error: CALL_ID is missing or request body is invalid.", req.body);
+    return res.status(400).json({ error: "Invalid request: Missing CALL_ID." });
   }
 
+  const callId = callData.CALL_ID;
   console.log(`📞 Received call event for CALL_ID: ${callId}`);
   requestQueue.push({ callId, res });
 
