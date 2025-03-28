@@ -1,139 +1,107 @@
-require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
-const axios = require("axios");
-const { ensureValidToken } = require("./bitrixAuth");
+const { bitrixRequest } = require("./bitrixAuth");
 
 const app = express();
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
-// Hàng đợi xử lý yêu cầu
 let requestQueue = [];
 let isProcessing = false;
 
-// Route kiểm tra API hoạt động
 app.get("/", (req, res) => {
-    res.send("🚀 Bitrix24 Call Handler is running!");
+  res.send("✅ App is running!");
 });
 
-// Xử lý POST từ Bitrix24
 app.post("/bx24-event-handler", async (req, res) => {
-    const callEndData = req.body.data;
-    const callId = callEndData?.CALL_ID;
+  const callData = req.body.data;
+  const callId = callData.CALL_ID;
 
-    if (!callId) {
-        return res.status(400).send("❌ Missing CALL_ID in request.");
-    }
+  if (!callId) {
+    console.error("❌ Error: Missing CALL_ID in request.");
+    return res.status(400).send("Missing CALL_ID.");
+  }
 
-    console.log(`📞 Received request for Call ID: ${callId}`);
-    requestQueue.push({ callId, res });
+  console.log(`📞 Received call event for CALL_ID: ${callId}`);
+  requestQueue.push({ callId, res });
 
-    if (!isProcessing) {
-        processNextRequest();
-    }
+  if (!isProcessing) {
+    processNextRequest();
+  }
 });
 
-// Xử lý hàng đợi
 async function processNextRequest() {
-    if (requestQueue.length === 0) {
-        isProcessing = false;
-        return;
+  if (requestQueue.length === 0) {
+    console.log("✅ All requests processed.");
+    isProcessing = false;
+    return;
+  }
+
+  isProcessing = true;
+  const { callId, res } = requestQueue.shift();
+
+  try {
+    // Lấy thông tin cuộc gọi
+    const callStats = await bitrixRequest(`/voximplant.statistic.get/?FILTER[CALL_ID]=${callId}`);
+    if (!callStats?.result?.length) {
+      throw new Error("No call data found.");
     }
 
-    isProcessing = true;
-    const { callId, res } = requestQueue.shift();
+    const callInfo = callStats.result[0];
+    const { CRM_ENTITY_ID, CRM_ENTITY_TYPE, CALL_FAILED_REASON, CALL_DURATION, CALL_START_DATE } = callInfo;
 
-    try {
-        const { crmEntityId, crmEntityType, callFailedCode, callDuration, callstartdate } =
-            await getVoximplantStatistic(callId);
-
-        if (!crmEntityId) {
-            res.status(400).send("❌ Missing CRM_ENTITY_ID.");
-            return processNextRequest();
-        }
-
-        if (crmEntityType === "DEAL") {
-            await updateDealField(crmEntityId, callFailedCode, callDuration, callstartdate, res);
-        } else if (crmEntityType === "CONTACT") {
-            const dealId = await findDealByContact(crmEntityId);
-            if (dealId) {
-                await updateDealField(dealId, callFailedCode, callDuration, callstartdate, res);
-            }
-            await updateContactField(crmEntityId, callFailedCode, callDuration, callstartdate, res);
-        } else {
-            res.status(400).send("❌ Unsupported CRM_ENTITY_TYPE.");
-        }
-    } catch (error) {
-        console.error("❌ Error processing request:", error);
+    if (!CRM_ENTITY_ID) {
+      throw new Error("Missing CRM_ENTITY_ID.");
     }
 
-    processNextRequest();
+    // Cập nhật vào Deal
+    if (CRM_ENTITY_TYPE === "DEAL") {
+      await updateDeal(CRM_ENTITY_ID, CALL_FAILED_REASON, CALL_DURATION, CALL_START_DATE);
+    } 
+    // Nếu là Contact, tìm Deal liên quan
+    else if (CRM_ENTITY_TYPE === "CONTACT") {
+      const dealData = await bitrixRequest(`/crm.deal.list/?FILTER[CONTACT_ID]=${CRM_ENTITY_ID}`);
+      if (dealData?.result?.length) {
+        await updateDeal(dealData.result[0].ID, CALL_FAILED_REASON, CALL_DURATION, CALL_START_DATE);
+      }
+      // Cập nhật vào Contact nếu không có Deal
+      await updateContact(CRM_ENTITY_ID, CALL_DURATION, CALL_FAILED_REASON, CALL_START_DATE);
+    }
+
+    res.send("✅ Call data processed successfully.");
+  } catch (error) {
+    console.error("❌ Error processing request:", error.message);
+    res.status(500).send(error.message);
+  }
+
+  processNextRequest();
 }
 
-// Hàm lấy thống kê cuộc gọi
-async function getVoximplantStatistic(callId) {
-    const accessToken = await ensureValidToken();
-    const apiUrl = `${process.env.BITRIX_DOMAIN}/rest/voximplant.statistic.get/?FILTER[CALL_ID]=${callId}&auth=${accessToken}`;
+// Cập nhật Deal
+async function updateDeal(dealId, callFailedCode, callDuration, callStartDate) {
+  const fieldsToUpdate = {
+    "UF_CRM_668BB634B111F": callFailedCode,  // Trạng thái cuộc gọi
+    "UF_CRM_66C2B64134A71": callDuration,   // Thời gian gọi
+    "UF_CRM_1733474117": callStartDate,     // Ngày gọi
+  };
 
-    const response = await axios.get(apiUrl);
-    const result = response.data?.result?.[0];
-
-    return {
-        crmEntityId: result?.CRM_ENTITY_ID,
-        crmEntityType: result?.CRM_ENTITY_TYPE,
-        callFailedCode: result?.CALL_FAILED_REASON,
-        callDuration: result?.CALL_DURATION,
-        callstartdate: result?.CALL_START_DATE,
-    };
+  console.log(`📌 Updating Deal ID: ${dealId}`);
+  await bitrixRequest(`/crm.deal.update.json/?ID=${dealId}`, "POST", { fields: fieldsToUpdate });
 }
 
-// Hàm cập nhật Deal
-async function updateDealField(dealId, callFailedCode, callDuration, callstartdate, res) {
-    const accessToken = await ensureValidToken();
-    const apiUrl = `${process.env.BITRIX_DOMAIN}/rest/crm.deal.update.json/?ID=${dealId}&auth=${accessToken}`;
+// Cập nhật Contact
+async function updateContact(contactId, callDuration, callStatus, lastCallDate) {
+  const fieldsToUpdate = {
+    "UF_CRM_66CBE81B02C06": callDuration,      // Thời gian gọi
+    "UF_CRM_668F763F5D533": callStatus,        // Trạng thái cuộc gọi
+    "UF_CRM_1733471904291": lastCallDate,      // Ngày cuối gọi
+  };
 
-    const fieldsToUpdate = {
-        UF_CRM_668BB634B111F: callFailedCode,
-        UF_CRM_66C2B64134A71: callDuration,
-        UF_CRM_1733474117: convertTimezone(callstartdate, 7),
-    };
-
-    await axios.post(apiUrl, { fields: fieldsToUpdate });
-    res.send(`✅ Deal ID ${dealId} updated successfully.`);
+  console.log(`📌 Updating Contact ID: ${contactId}`);
+  await bitrixRequest(`/crm.contact.update.json/?ID=${contactId}`, "POST", { fields: fieldsToUpdate });
 }
 
-// Hàm cập nhật Contact
-async function updateContactField(contactId, callFailedCode, callDuration, callstartdate, res) {
-    const accessToken = await ensureValidToken();
-    const apiUrl = `${process.env.BITRIX_DOMAIN}/rest/crm.contact.update.json/?ID=${contactId}&auth=${accessToken}`;
-
-    const fieldsToUpdate = {
-        UF_CRM_66CBE81B02C06: callDuration,
-        UF_CRM_668F763F5D533: callFailedCode,
-        UF_CRM_1733471904291: convertTimezone(callstartdate, 7),
-    };
-
-    await axios.post(apiUrl, { fields: fieldsToUpdate });
-    res.send(`✅ Contact ID ${contactId} updated successfully.`);
-}
-
-// Tìm Deal ID từ Contact ID
-async function findDealByContact(contactId) {
-    const accessToken = await ensureValidToken();
-    const apiUrl = `${process.env.BITRIX_DOMAIN}/rest/crm.deal.list/?FILTER[CONTACT_ID]=${contactId}&auth=${accessToken}`;
-
-    const response = await axios.get(apiUrl);
-    return response.data?.result?.[0]?.ID;
-}
-
-// Chuyển đổi múi giờ
-function convertTimezone(dateString, targetOffset) {
-    const date = new Date(dateString);
-    const utc = date.getTime() + date.getTimezoneOffset() * 60000;
-    return new Date(utc + targetOffset * 3600000).toISOString();
-}
-
-// Khởi động server
+// Lắng nghe trên cổng Railway
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server running at http://0.0.0.0:${PORT}/`);
+});
