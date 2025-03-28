@@ -35,6 +35,12 @@ app.get("/", (req, res) => {
 //     processNextRequest();
 //   }
 // });
+// Hỗ trợ JSON
+app.use(express.json());
+
+// 🔥 Thêm middleware để hỗ trợ x-www-form-urlencoded
+app.use(express.urlencoded({ extended: true }));
+
 app.post("/bx24-event-handler", async (req, res) => {
   console.log("📥 Headers:", req.headers);
   console.log("📥 Raw request body:", req.body);
@@ -46,7 +52,7 @@ app.post("/bx24-event-handler", async (req, res) => {
 
   const callData = req.body.data;
   console.log("📞 Extracted callData:", callData);
-  
+
   if (!callData || !callData.CALL_ID) {
     console.error("❌ Error: CALL_ID is missing.");
     return res.status(400).json({ error: "Invalid request: Missing CALL_ID." });
@@ -55,7 +61,6 @@ app.post("/bx24-event-handler", async (req, res) => {
   console.log(`📞 Received call event for CALL_ID: ${callData.CALL_ID}`);
   res.send("✅ Data received successfully.");
 });
-
 async function processNextRequest() {
   if (requestQueue.length === 0) {
     console.log("✅ All requests processed.");
