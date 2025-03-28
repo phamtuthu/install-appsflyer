@@ -109,6 +109,7 @@ function convertTimezone(dateString, targetOffset) {
 }
 
 // 📌 Cập nhật Deal trong Bitrix24
+// 📌 Cập nhật Deal trong Bitrix24
 async function updateDeal(dealId, callFailedCode, callDuration, callStartDate) {
   const fieldsToUpdate = {
     "UF_CRM_668BB634B111F": callFailedCode,  // Trạng thái cuộc gọi
@@ -116,11 +117,19 @@ async function updateDeal(dealId, callFailedCode, callDuration, callStartDate) {
     "UF_CRM_1733474117": callStartDate,     // Ngày gọi
   };
 
-  console.log(`📌 Updating Deal ID: ${dealId}`);
-  await bitrixRequest(`/crm.deal.update`, "POST", {
-    ID: dealId,
-    fields: fieldsToUpdate
-  });
+  console.log(`📌 [updateDeal] Updating Deal ID: ${dealId}`);
+  console.log(`📤 [updateDeal] Sending data:`, fieldsToUpdate);
+
+  try {
+    const response = await bitrixRequest(`/crm.deal.update`, "POST", {
+      ID: dealId,
+      fields: fieldsToUpdate
+    });
+
+    console.log(`✅ [updateDeal] Response from Bitrix:`, response);
+  } catch (error) {
+    console.error(`❌ [updateDeal] Error updating deal ${dealId}:`, error.message);
+  }
 }
 
 // 📌 Cập nhật Contact trong Bitrix24
@@ -131,11 +140,19 @@ async function updateContact(contactId, callDuration, callStatus, lastCallDate) 
     "UF_CRM_1733471904291": lastCallDate,      // Ngày cuối gọi
   };
 
-  console.log(`📌 Updating Contact ID: ${contactId}`);
-  await bitrixRequest(`/crm.contact.update`, "POST", {
-    ID: contactId,
-    fields: fieldsToUpdate
-  });
+  console.log(`📌 [updateContact] Updating Contact ID: ${contactId}`);
+  console.log(`📤 [updateContact] Sending data:`, fieldsToUpdate);
+
+  try {
+    const response = await bitrixRequest(`/crm.contact.update`, "POST", {
+      ID: contactId,
+      fields: fieldsToUpdate
+    });
+
+    console.log(`✅ [updateContact] Response from Bitrix:`, response);
+  } catch (error) {
+    console.error(`❌ [updateContact] Error updating contact ${contactId}:`, error.message);
+  }
 }
 
 // 🚀 Khởi chạy server trên Railway
