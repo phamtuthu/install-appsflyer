@@ -1,6 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const bitrixRequest = require("./bitrixAuth"); // ✅ Đúng cách
+const bitrixRequest = require("./bitrixAuth"); // ✅ Import đúng
 
 const app = express();
 app.use(bodyParser.json());
@@ -23,7 +23,7 @@ app.post("/bx24-event-handler", async (req, res) => {
   const callData = req.body.data;
 
   if (!callData || !callData.CALL_ID) {
-    console.error("❌ Error: CALL_ID is missing or request body is invalid.", JSON.stringify(req.body, null, 2));
+    console.error("❌ Error: CALL_ID is missing.", JSON.stringify(req.body, null, 2));
     return res.status(400).json({ error: "Invalid request: Missing CALL_ID." });
   }
 
@@ -48,7 +48,7 @@ async function processNextRequest() {
 
   try {
     // Lấy thông tin cuộc gọi
-    const callStats = await bitrixRequest(`/voximplant.statistic.get/?FILTER[CALL_ID]=${callId}`);
+    const callStats = await bitrixRequest("GET", "voximplant.statistic.get", { "FILTER[CALL_ID]": callId });
     if (!callStats?.result?.length) {
       throw new Error("No call data found.");
     }
@@ -66,7 +66,7 @@ async function processNextRequest() {
     } 
     // Nếu là Contact, tìm Deal liên quan
     else if (CRM_ENTITY_TYPE === "CONTACT") {
-      const dealData = await bitrixRequest(`/crm.deal.list/?FILTER[CONTACT_ID]=${CRM_ENTITY_ID}`);
+      const dealData = await bitrixRequest("GET", "crm.deal.list", { "FILTER[CONTACT_ID]": CRM_ENTITY_ID });
       if (dealData?.result?.length) {
         await updateDeal(dealData.result[0].ID, CALL_FAILED_REASON, CALL_DURATION, CALL_START_DATE);
       }
@@ -92,7 +92,7 @@ async function updateDeal(dealId, callFailedCode, callDuration, callStartDate) {
   };
 
   console.log(`📌 Updating Deal ID: ${dealId}`);
-  await bitrixRequest(`/crm.deal.update.json/?ID=${dealId}`, "POST", { fields: fieldsToUpdate });
+  await bitrixRequest("POST", "crm.deal.update", { ID: dealId, fields: fieldsToUpdate });
 }
 
 // Cập nhật Contact
@@ -104,10 +104,10 @@ async function updateContact(contactId, callDuration, callStatus, lastCallDate) 
   };
 
   console.log(`📌 Updating Contact ID: ${contactId}`);
-  await bitrixRequest(`/crm.contact.update.json/?ID=${contactId}`, "POST", { fields: fieldsToUpdate });
+  await bitrixRequest("POST", "crm.contact.update", { ID: contactId, fields: fieldsToUpdate });
 }
 
-// Lắng nghe trên cổng Railway
+// Lắng nghe trên Railway
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running at http://0.0.0.0:${PORT}/`);
