@@ -32,7 +32,6 @@ async function ensureValidToken() {
 }
 
 // Gửi request tới Bitrix24
-const axios = require("axios");
 
 async function bitrixRequest(method, httpMethod = "POST", params = {}) {
     try {
