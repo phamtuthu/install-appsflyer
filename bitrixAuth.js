@@ -36,15 +36,14 @@ async function ensureValidToken() {
 // 📌 Hàm gửi request tới Bitrix24 API
 async function bitrixRequest(method, endpoint, data = {}) {
     try {
-        const token = await ensureValidToken(); // Đảm bảo token hợp lệ
-
+        const token = await ensureValidToken();
         const url = `${process.env.BITRIX_DOMAIN}/rest/${endpoint}`;
 
         const response = await axios({
-            method,
+            method: method.toUpperCase(), // Chắc chắn method hợp lệ (GET, POST, ...)
             url,
-            data,
-            params: { auth: token },
+            data: method.toUpperCase() === "POST" ? data : undefined, // POST gửi data
+            params: method.toUpperCase() === "GET" ? { auth: token, ...data } : { auth: token }, // GET gửi params
         });
 
         return response.data;
