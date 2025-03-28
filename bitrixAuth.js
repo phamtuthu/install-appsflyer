@@ -1,10 +1,9 @@
 const axios = require("axios");
 
-// Biến lưu token
 let accessToken = "";
 let refreshToken = process.env.BITRIX_REFRESH_TOKEN;
 
-// 🔄 Hàm refresh access token bằng refresh token
+// Hàm lấy access token mới bằng refresh token
 async function refreshAccessToken() {
     try {
         const response = await axios.get(`${process.env.BITRIX_DOMAIN}/oauth/token/`, {
@@ -21,11 +20,10 @@ async function refreshAccessToken() {
         console.log("🔄 Token refreshed successfully!");
     } catch (error) {
         console.error("❌ Error refreshing token:", error.response?.data || error.message);
-        throw new Error("Failed to refresh token");
     }
 }
 
-// ✅ Middleware đảm bảo có token hợp lệ trước khi gọi API
+// Middleware để đảm bảo access token hợp lệ trước khi gọi API
 async function ensureValidToken() {
     if (!accessToken) {
         await refreshAccessToken();
@@ -33,17 +31,17 @@ async function ensureValidToken() {
     return accessToken;
 }
 
-// 📌 Hàm gửi request tới Bitrix24 API
+// Gửi request tới Bitrix24
 async function bitrixRequest(method, endpoint, data = {}) {
     try {
         const token = await ensureValidToken();
         const url = `${process.env.BITRIX_DOMAIN}/rest/${endpoint}`;
 
         const response = await axios({
-            method: method.toUpperCase(), // Chắc chắn method hợp lệ (GET, POST, ...)
+            method: method.toUpperCase(),
             url,
-            data: method.toUpperCase() === "POST" ? data : undefined, // POST gửi data
-            params: method.toUpperCase() === "GET" ? { auth: token, ...data } : { auth: token }, // GET gửi params
+            params: method.toUpperCase() === "GET" ? { auth: token, ...data } : { auth: token },
+            data: method.toUpperCase() === "POST" ? data : undefined,
         });
 
         return response.data;
@@ -53,5 +51,4 @@ async function bitrixRequest(method, endpoint, data = {}) {
     }
 }
 
-// ✅ Export đúng
 module.exports = bitrixRequest;
