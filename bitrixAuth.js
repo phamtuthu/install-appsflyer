@@ -3,6 +3,70 @@ const axios = require("axios");
 let accessToken = "";
 let refreshToken = process.env.BITRIX_REFRESH_TOKEN;
 
+// 🌍 Lấy domain Bitrix từ biến môi trường
+const BITRIX_DOMAIN = process.env.BITRIX_DOMAIN;
+
+// 🔄 Hàm refresh Access Token
+async function refreshAccessToken() {
+    try {
+        const response = await axios.get(`${BITRIX_DOMAIN}/oauth/token/`, {
+            params: {
+                grant_type: "refresh_token",
+                client_id: process.env.BITRIX_CLIENT_ID,
+                client_secret: process.env.BITRIX_CLIENT_SECRET,
+                refresh_token: refreshToken,
+            },
+        });
+
+        accessToken = response.data.access_token;
+        refreshToken = response.data.refresh_token; // Cập nhật refresh token mới
+        console.log("🔄 Token refreshed successfully!", accessToken);
+    } catch (error) {
+        console.error("❌ Error refreshing token:", error.response?.data || error.message);
+        throw new Error("Failed to refresh access token");
+    }
+}
+
+// 🌟 Middleware đảm bảo token hợp lệ trước khi gửi request
+async function ensureValidToken() {
+    if (!accessToken) {
+        await refreshAccessToken();
+    }
+    return accessToken;
+}
+
+// 🚀 Gửi request tới Bitrix24
+async function bitrixRequest(method, httpMethod = "POST", params = {}) {
+    try {
+        const token = await ensureValidToken(); // 🔄 Đảm bảo token hợp lệ
+        const url = `${BITRIX_DOMAIN}/rest/${method}?auth=${token}`; // 🔥 Sử dụng token đúng
+
+        console.log(`📤 Sending request to: ${url}`);
+
+        const response = await axios({
+            method: httpMethod,
+            url: url,
+            data: params,
+            headers: { "Content-Type": "application/json" },
+        });
+
+        if (response.data.error) {
+            throw new Error(`❌ Bitrix API error: ${response.data.error_description || response.data.error}`);
+        }
+
+        return response.data;
+    } catch (error) {
+        console.error(`❌ Bitrix API request failed: ${error.message}`);
+        throw error;
+    }
+}
+
+module.exports = bitrixRequest;
+/*const axios = require("axios");
+
+let accessToken = "";
+let refreshToken = process.env.BITRIX_REFRESH_TOKEN;
+
 // Hàm lấy access token mới bằng refresh token
 async function refreshAccessToken() {
     try {
@@ -35,7 +99,7 @@ async function ensureValidToken() {
 
 async function bitrixRequest(method, httpMethod = "POST", params = {}) {
     try {
-        const url = `${process.env.BITRIX_DOMAIN}/rest/${process.env.BITRIX_AUTH_TOKEN}${method}`;
+        const url = `${process.env.BITRIX_DOMAIN}/rest/${process.env.BITRIX_AUTH_TOKEN}/${method}`;
         const response = await axios({
             method: httpMethod,
             url: url,
@@ -55,3 +119,4 @@ async function bitrixRequest(method, httpMethod = "POST", params = {}) {
 }
 
 module.exports = bitrixRequest;
+*/
