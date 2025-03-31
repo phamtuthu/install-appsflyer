@@ -67,7 +67,7 @@ async function handleCallData(callData) {
     const formattedCallStartDate = vnTime.toISOString().replace("T", " ").substring(0, 19); // YYYY-MM-DD HH:mm:ss
 
     // 🔍 1. Lấy danh sách Contacts liên quan đến số điện thoại
-    const contactData = await bitrixRequest(`/crm.contact.list`, "POST", {
+    const contactData = await bitrixRequest(`crm.contact.list`, "POST", {
       FILTER: { PHONE: PHONE_NUMBER }
     });
 
@@ -80,7 +80,7 @@ async function handleCallData(callData) {
     console.log(`📇 Found Contact ID: ${contactId}`);
 
     // 🔍 2. Tìm Deal gần nhất liên quan đến Contact ID
-    const dealData = await bitrixRequest(`/crm.deal.list`, "POST", {
+    const dealData = await bitrixRequest(`crm.deal.list`, "POST", {
       FILTER: { CONTACT_ID: contactId },
       ORDER: { DATE_CREATE: "DESC" }, // Lấy Deal mới nhất
       LIMIT: 1
@@ -113,7 +113,7 @@ async function updateDeal(dealId, callFailedCode, callDuration, callStartDate) {
 //  console.log(`📤 [updateDeal] Payload:`, JSON.stringify(fieldsToUpdate, null, 2));
 
   try {
-    const response = await bitrixRequest(`/crm.deal.update`, "POST", {
+    const response = await bitrixRequest(`crm.deal.update`, "POST", {
       ID: dealId,
       fields: fieldsToUpdate
     });
@@ -140,7 +140,7 @@ async function updateContact(contactId, callDuration, callStatus, lastCallDate) 
 //  console.log(`📤 [updateContact] Payload:`, JSON.stringify(fieldsToUpdate, null, 2));
 
   try {
-    const response = await bitrixRequest(`/crm.contact.update`, "POST", {
+    const response = await bitrixRequest(`crm.contact.update`, "POST", {
       ID: contactId,
       fields: fieldsToUpdate
     });
