@@ -3,6 +3,169 @@ const bodyParser = require("body-parser");
 const bitrixRequest = require("./bitrixAuth"); // Import Bitrix API helper
 
 const app = express();
+app.use(bodyParser.json());
+app.use(express.urlencoded({ extended: true }));
+
+let requestQueue = [];
+let isProcessing = false;
+
+// ✅ Kiểm tra server hoạt động
+app.get("/", (req, res) => {
+  res.send("✅ App is running!");
+});
+
+// 📌 Xử lý webhook từ Bitrix24
+app.post("/bx24-event-handler", async (req, res) => {
+  console.log("📥 Headers:", req.headers);
+  console.log("📥 Raw request body:", JSON.stringify(req.body, null, 2));
+
+  if (!req.body || Object.keys(req.body).length === 0) {
+    console.error("❌ Error: Request body is empty.");
+    return res.status(400).json({ error: "Invalid request: Request body is empty." });
+  }
+
+  const callData = req.body.data;
+  console.log("📞 Extracted callData:", callData);
+
+  if (!callData || !callData.CALL_ID || !callData.PHONE_NUMBER) {
+    console.error("❌ Error: CALL_ID or PHONE_NUMBER is missing.");
+    return res.status(400).json({ error: "Invalid request: Missing CALL_ID or PHONE_NUMBER." });
+  }
+
+  console.log(`📞 Received call event for CALL_ID: ${callData.CALL_ID}`);
+  requestQueue.push({ callData, res });
+
+  if (!isProcessing) {
+    processNextRequest();
+  }
+});
+
+// 📌 Xử lý từng request trong hàng đợi
+async function processNextRequest() {
+  if (requestQueue.length === 0) {
+    console.log("✅ All requests processed.");
+    isProcessing = false;
+    return;
+  }
+
+  isProcessing = true;
+  const { callData, res } = requestQueue.shift();
+  const { CALL_ID, PHONE_NUMBER, CALL_DURATION, CALL_START_DATE, CALL_FAILED_REASON } = callData;
+
+  try {
+    console.log(`📞 Processing call event for CALL_ID: ${CALL_ID} (Phone: ${PHONE_NUMBER})`);
+
+    // 🔄 Chuyển đổi thời gian về giờ Việt Nam (UTC+7)
+    const callStartDate = new Date(CALL_START_DATE);
+    const vnTime = new Date(callStartDate.getTime() + (7 * 60 * 60 * 1000)); 
+    const formattedCallStartDate = vnTime.toISOString().replace("T", " ").substring(0, 19);
+
+    console.log(`⏳ Converted Call Start Date: ${formattedCallStartDate} (VN Time)`);
+
+    // 🔍 1. Lấy danh sách Contacts theo số điện thoại
+    const contactData = await bitrixRequest(`/crm.contact.list`, "POST", {
+      FILTER: { PHONE: PHONE_NUMBER }
+    });
+
+    if (!contactData.result.length) {
+      console.log(`⚠️ No contact found for phone: ${PHONE_NUMBER}`);
+      res.send("⚠️ No contact found.");
+      return;
+    }
+
+    const contactId = contactData.result[0].ID;
+    console.log(`📇 Found Contact ID: ${contactId}`);
+
+    // 🔍 2. Tìm Deals liên quan đến Contact ID
+    const dealData = await bitrixRequest(`/crm.deal.list`, "POST", {
+      FILTER: { CONTACT_ID: contactId }
+    });
+
+    console.log(`📊 Found ${dealData?.result?.length || 0} Deals`);
+
+    // 🛠 3. Cập nhật tất cả Deals tìm thấy
+    if (dealData?.result?.length) {
+      for (const deal of dealData.result) {
+        await updateDeal(deal.ID, CALL_FAILED_REASON, CALL_DURATION, formattedCallStartDate);
+      }
+    }
+
+    // 🛠 4. Cập nhật Contact
+    await updateContact(contactId, CALL_DURATION, CALL_FAILED_REASON, formattedCallStartDate);
+
+    res.send("✅ Call data processed successfully.");
+  } catch (error) {
+    console.error("❌ Error processing request:", error.message);
+    res.status(500).send(error.message);
+  }
+
+  processNextRequest();
+}
+
+// 📌 Cập nhật Deal trong Bitrix24
+async function updateDeal(dealId, callFailedCode, callDuration, callStartDate) {
+  const fieldsToUpdate = {
+    "UF_CRM_668BB634B111F": callFailedCode,  // Trạng thái cuộc gọi
+    "UF_CRM_66C2B64134A71": callDuration,   // Thời gian gọi
+    "UF_CRM_1733474117": callStartDate,     // Ngày gọi
+  };
+
+  console.log(`🔄 [updateDeal] Updating Deal ID: ${dealId}`);
+  console.log(`📤 [updateDeal] Payload:`, JSON.stringify(fieldsToUpdate, null, 2));
+
+  try {
+    const response = await bitrixRequest(`/crm.deal.update`, "POST", {
+      ID: dealId,
+      fields: fieldsToUpdate
+    });
+
+    console.log(`✅ [updateDeal] Bitrix Response:`, JSON.stringify(response, null, 2));
+
+    if (response.error) {
+      console.error(`❌ [updateDeal] Bitrix API error:`, response.error);
+    }
+  } catch (error) {
+    console.error(`❌ [updateDeal] Exception:`, error.message);
+  }
+}
+
+// 📌 Cập nhật Contact trong Bitrix24
+async function updateContact(contactId, callDuration, callStatus, lastCallDate) {
+  const fieldsToUpdate = {
+    "UF_CRM_66CBE81B02C06": callDuration,      // Thời gian gọi
+    "UF_CRM_668F763F5D533": callStatus,        // Trạng thái cuộc gọi
+    "UF_CRM_1733471904291": lastCallDate,      // Ngày cuối gọi
+  };
+
+  console.log(`🔄 [updateContact] Updating Contact ID: ${contactId}`);
+  console.log(`📤 [updateContact] Payload:`, JSON.stringify(fieldsToUpdate, null, 2));
+
+  try {
+    const response = await bitrixRequest(`/crm.contact.update`, "POST", {
+      ID: contactId,
+      fields: fieldsToUpdate
+    });
+
+    console.log(`✅ [updateContact] Bitrix Response:`, JSON.stringify(response, null, 2));
+
+    if (response.error) {
+      console.error(`❌ [updateContact] Bitrix API error:`, response.error);
+    }
+  } catch (error) {
+    console.error(`❌ [updateContact] Exception:`, error.message);
+  }
+}
+
+// 🚀 Khởi chạy server trên Railway
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server running at http://0.0.0.0:${PORT}/`);
+});
+/*const express = require("express");
+const bodyParser = require("body-parser");
+const bitrixRequest = require("./bitrixAuth"); // Import Bitrix API helper
+
+const app = express();
 app.use(bodyParser.json()); // Hỗ trợ JSON body
 app.use(express.urlencoded({ extended: true })); // Hỗ trợ x-www-form-urlencoded
 
