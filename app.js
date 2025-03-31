@@ -16,7 +16,7 @@ app.get("/", (req, res) => {
 
 // 📌 Xử lý webhook từ Bitrix24
 app.post("/bx24-event-handler", async (req, res) => {
-  console.log("📥 Received webhook:", req.body);
+//  console.log("📥 Received webhook:", req.body);
 
   // 🔥 Phản hồi ngay lập tức để tránh Bitrix24 timeout
   res.status(200).send("✅ Received. Processing in background.");
@@ -110,7 +110,7 @@ async function updateDeal(dealId, callFailedCode, callDuration, callStartDate) {
   };
 
   console.log(`🔄 [updateDeal] Updating Deal ID: ${dealId}`);
-  console.log(`📤 [updateDeal] Payload:`, JSON.stringify(fieldsToUpdate, null, 2));
+//  console.log(`📤 [updateDeal] Payload:`, JSON.stringify(fieldsToUpdate, null, 2));
 
   try {
     const response = await bitrixRequest(`/crm.deal.update`, "POST", {
@@ -118,7 +118,7 @@ async function updateDeal(dealId, callFailedCode, callDuration, callStartDate) {
       fields: fieldsToUpdate
     });
 
-    console.log(`✅ [updateDeal] Bitrix Response:`, JSON.stringify(response, null, 2));
+//    console.log(`✅ [updateDeal] Bitrix Response:`, JSON.stringify(response, null, 2));
 
     if (response.error) {
       console.error(`❌ [updateDeal] Bitrix API error:`, response.error);
@@ -137,7 +137,7 @@ async function updateContact(contactId, callDuration, callStatus, lastCallDate) 
   };
 
   console.log(`🔄 [updateContact] Updating Contact ID: ${contactId}`);
-  console.log(`📤 [updateContact] Payload:`, JSON.stringify(fieldsToUpdate, null, 2));
+//  console.log(`📤 [updateContact] Payload:`, JSON.stringify(fieldsToUpdate, null, 2));
 
   try {
     const response = await bitrixRequest(`/crm.contact.update`, "POST", {
@@ -145,7 +145,7 @@ async function updateContact(contactId, callDuration, callStatus, lastCallDate) 
       fields: fieldsToUpdate
     });
 
-    console.log(`✅ [updateContact] Bitrix Response:`, JSON.stringify(response, null, 2));
+//    console.log(`✅ [updateContact] Bitrix Response:`, JSON.stringify(response, null, 2));
 
     if (response.error) {
       console.error(`❌ [updateContact] Bitrix API error:`, response.error);
