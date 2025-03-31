@@ -39,59 +39,6 @@ app.post("/bx24-event-handler", async (req, res) => {
     processNextRequest();
   }
 });
-
-// ⏳ Xử lý từng request trong hàng đợi
-/*async function processNextRequest() {
-  if (requestQueue.length === 0) {
-    console.log("✅ All requests processed.");
-    isProcessing = false;
-    return;
-  }
-
-  isProcessing = true;
-  const { callData, res } = requestQueue.shift();
-  const { CALL_ID, PHONE_NUMBER, CALL_DURATION, CALL_START_DATE, CALL_FAILED_REASON } = callData;
-
-  try {
-    console.log(`📞 Processing call event for CALL_ID: ${CALL_ID} (Phone: ${PHONE_NUMBER})`);
-
-    // 🕒 Chuyển đổi thời gian cuộc gọi
-    const callStartDate = convertTimezone(CALL_START_DATE, 7);
-
-    // 🔍 Lấy danh sách Deals liên quan đến số điện thoại
-    const dealData = await bitrixRequest(`/crm.deal.list`, "POST", {
-      FILTER: { CONTACT_PHONE: PHONE_NUMBER }
-    });
-
-    // 🔍 Lấy danh sách Contacts liên quan đến số điện thoại
-    const contactData = await bitrixRequest(`/crm.contact.list`, "POST", {
-      FILTER: { PHONE: PHONE_NUMBER }
-    });
-
-    console.log(`📊 Found ${dealData?.result?.length || 0} Deals & ${contactData?.result?.length || 0} Contacts`);
-
-    // 🛠 Cập nhật tất cả Deals tìm thấy
-    if (dealData?.result?.length) {
-      for (const deal of dealData.result) {
-        await updateDeal(deal.ID, CALL_FAILED_REASON, CALL_DURATION, callStartDate);
-      }
-    }
-
-    // 🛠 Cập nhật tất cả Contacts tìm thấy
-    if (contactData?.result?.length) {
-      for (const contact of contactData.result) {
-        await updateContact(contact.ID, CALL_DURATION, CALL_FAILED_REASON, callStartDate);
-      }
-    }
-
-    res.send("✅ Call data processed successfully.");
-  } catch (error) {
-    console.error("❌ Error processing request:", error.message);
-    res.status(500).send(error.message);
-  }
-
-  processNextRequest();
-}*/
 // 📌 Xử lý từng request trong hàng đợi
 async function processNextRequest() {
   if (requestQueue.length === 0) {
@@ -108,7 +55,9 @@ async function processNextRequest() {
     console.log(`📞 Processing call event for CALL_ID: ${CALL_ID} (Phone: ${PHONE_NUMBER})`);
 
     // 🕒 Chuyển đổi thời gian cuộc gọi
-    const callStartDate = convertTimezone(CALL_START_DATE, 7);
+    const callStartDate = new Date(CALL_START_DATE);
+const vnTime = new Date(callStartDate.getTime() + (7 * 60 * 60 * 1000)); // Chuyển về giờ Việt Nam (UTC+7)
+const formattedCallStartDate = vnTime.toISOString().replace("T", " ").substring(0, 19); // Định dạng YYYY-MM-DD HH:mm:ss
 
     // 🔍 1. Lấy danh sách Contacts liên quan đến số điện thoại
     const contactData = await bitrixRequest(`/crm.contact.list`, "POST", {
