@@ -151,13 +151,13 @@ async function processNextRequest() {
 }
 
 // 🔄 Chuyển đổi múi giờ & cộng thêm 1 giờ
-/*function convertTimezone(dateString, targetOffset) {
+function convertTimezone(dateString, targetOffset) {
   const date = new Date(dateString);
   const utc = date.getTime() + date.getTimezoneOffset() * 60000;
   const newDate = new Date(utc + targetOffset * 3600000);
   newDate.setHours(newDate.getHours() + 1); // Cộng thêm 1 giờ
   return newDate.toISOString();
-}*/
+}
 
 // 📌 Cập nhật Deal trong Bitrix24
 async function updateDeal(dealId, callFailedCode, callDuration, callStartDate) {
