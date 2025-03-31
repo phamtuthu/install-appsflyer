@@ -41,7 +41,7 @@ app.post("/bx24-event-handler", async (req, res) => {
 });
 
 // ⏳ Xử lý từng request trong hàng đợi
-async function processNextRequest() {
+/*async function processNextRequest() {
   if (requestQueue.length === 0) {
     console.log("✅ All requests processed.");
     isProcessing = false;
@@ -83,6 +83,63 @@ async function processNextRequest() {
         await updateContact(contact.ID, CALL_DURATION, CALL_FAILED_REASON, callStartDate);
       }
     }
+
+    res.send("✅ Call data processed successfully.");
+  } catch (error) {
+    console.error("❌ Error processing request:", error.message);
+    res.status(500).send(error.message);
+  }
+
+  processNextRequest();
+}*/
+// 📌 Xử lý từng request trong hàng đợi
+async function processNextRequest() {
+  if (requestQueue.length === 0) {
+    console.log("✅ All requests processed.");
+    isProcessing = false;
+    return;
+  }
+
+  isProcessing = true;
+  const { callData, res } = requestQueue.shift();
+  const { CALL_ID, PHONE_NUMBER, CALL_DURATION, CALL_START_DATE, CALL_FAILED_REASON } = callData;
+
+  try {
+    console.log(`📞 Processing call event for CALL_ID: ${CALL_ID} (Phone: ${PHONE_NUMBER})`);
+
+    // 🕒 Chuyển đổi thời gian cuộc gọi
+    const callStartDate = convertTimezone(CALL_START_DATE, 7);
+
+    // 🔍 1. Lấy danh sách Contacts liên quan đến số điện thoại
+    const contactData = await bitrixRequest(`/crm.contact.list`, "POST", {
+      FILTER: { PHONE: PHONE_NUMBER }
+    });
+
+    if (!contactData.result.length) {
+      console.log(`⚠️ No contact found for phone: ${PHONE_NUMBER}`);
+      res.send("⚠️ No contact found.");
+      return;
+    }
+
+    const contactId = contactData.result[0].ID; // Lấy Contact ID đầu tiên
+    console.log(`📇 Found Contact ID: ${contactId}`);
+
+    // 🔍 2. Tìm Deals liên quan đến Contact ID
+    const dealData = await bitrixRequest(`/crm.deal.list`, "POST", {
+      FILTER: { CONTACT_ID: contactId }
+    });
+
+    console.log(`📊 Found ${dealData?.result?.length || 0} Deals`);
+
+    // 🛠 3. Cập nhật tất cả Deals tìm thấy
+    if (dealData?.result?.length) {
+      for (const deal of dealData.result) {
+        await updateDeal(deal.ID, CALL_FAILED_REASON, CALL_DURATION, callStartDate);
+      }
+    }
+
+    // 🛠 4. Cập nhật Contact
+    await updateContact(contactId, CALL_DURATION, CALL_FAILED_REASON, callStartDate);
 
     res.send("✅ Call data processed successfully.");
   } catch (error) {
