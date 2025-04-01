@@ -75,7 +75,46 @@ async function restartRailwayService() {
     console.error("❌ Error restarting Railway service:", error.message);
   }
 }
+async function updateRailwayToken(newAccessToken, newRefreshToken) {
+  try {
+    console.log("🔄 Updating Railway Environment Variables...");
 
+    const response = await axios.put(
+      `https://backboard.railway.app/graphql`,
+      {
+        query: `
+          mutation {
+            variableUpdate(input: {
+              projectId: "${process.env.RAILWAY_PROJECT_ID}",
+              environmentId: "${process.env.RAILWAY_ENV_ID}",
+              serviceId: "${process.env.RAILWAY_SERVICE_ID}",
+              name: "BITRIX_ACCESS_TOKEN",
+              value: "${newAccessToken}"
+            }) {
+              id
+            }
+            variableUpdate(input: {
+              projectId: "${process.env.RAILWAY_PROJECT_ID}",
+              environmentId: "${process.env.RAILWAY_ENV_ID}",
+              serviceId: "${process.env.RAILWAY_SERVICE_ID}",
+              name: "BITRIX_REFRESH_TOKEN",
+              value: "${newRefreshToken}"
+            }) {
+              id
+            }
+          }
+        `
+      },
+      {
+        headers: { Authorization: `Bearer ${process.env.RAILWAY_API_KEY}` }
+      }
+    );
+
+    console.log("✅ Railway tokens updated successfully!");
+  } catch (error) {
+    console.error("❌ Error updating Railway token:", error.response?.data || error.message);
+  }
+}
 // 📌 Hàm gửi request đến Bitrix API
 async function bitrixRequest(endpoint, method = "POST", data = {}) {
   try {
