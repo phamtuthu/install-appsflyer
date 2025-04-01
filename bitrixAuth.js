@@ -5,6 +5,11 @@ let BITRIX_ACCESS_TOKEN = process.env.BITRIX_ACCESS_TOKEN;
 let BITRIX_REFRESH_TOKEN = process.env.BITRIX_REFRESH_TOKEN;
 const BITRIX_DOMAIN = process.env.BITRIX_DOMAIN;
 
+// ⚙️ Thông tin Railway API
+const RAILWAY_API_KEY = process.env.RAILWAY_API_KEY;
+const PROJECT_ID = process.env.RAILWAY_PROJECT_ID;
+const ENV_ID = process.env.RAILWAY_ENV_ID;
+
 async function refreshBitrixToken() {
   try {
     const url = `${BITRIX_DOMAIN}/oauth/token/`;
@@ -22,14 +27,38 @@ async function refreshBitrixToken() {
 
       console.log("✅ Token refreshed successfully!");
 
-      // Cập nhật biến môi trường để dùng ngay lập tức
+      // Cập nhật vào biến môi trường của Node.js
       process.env.BITRIX_ACCESS_TOKEN = BITRIX_ACCESS_TOKEN;
       process.env.BITRIX_REFRESH_TOKEN = BITRIX_REFRESH_TOKEN;
+
+      // 🔄 Gọi API cập nhật token vào Railway Variables
+      await updateRailwayToken("BITRIX_ACCESS_TOKEN", BITRIX_ACCESS_TOKEN);
+      await updateRailwayToken("BITRIX_REFRESH_TOKEN", BITRIX_REFRESH_TOKEN);
     } else {
       throw new Error("Failed to refresh token");
     }
   } catch (error) {
     console.error("❌ Error refreshing token:", error.message);
+  }
+}
+
+// 📌 Hàm cập nhật biến môi trường trên Railway
+async function updateRailwayToken(variableName, variableValue) {
+  try {
+    const response = await axios.put(
+      `https://backboard.railway.app/v1/projects/${PROJECT_ID}/environments/${ENV_ID}/variables`,
+      [{ name: variableName, value: variableValue }],
+      {
+        headers: {
+          Authorization: `Bearer ${RAILWAY_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log(`✅ Updated Railway variable: ${variableName}`);
+  } catch (error) {
+    console.error(`❌ Failed to update Railway variable: ${variableName}`, error.response?.data || error.message);
   }
 }
 
