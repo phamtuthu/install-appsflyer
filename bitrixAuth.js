@@ -44,7 +44,7 @@ async function bitrixRequest(method, httpMethod = "POST", params = {}) {
     }
 
     const url = `${BITRIX_DOMAIN}/rest/${method}`;
-    console.log(`📤 Sending request to: ${url} with token: ${accessToken.slice(0, 10)}...`);
+ //   console.log(`📤 Sending request to: ${url} with token: ${accessToken.slice(0, 10)}...`);
     const response = await axios({
       method: httpMethod,
       url: url,
