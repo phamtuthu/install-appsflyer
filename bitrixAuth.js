@@ -36,7 +36,7 @@ async function refreshBitrixToken() {
 // 📌 Gửi request Bitrix API + kiểm tra lỗi 401
 async function bitrixRequest(endpoint, method = "POST", data = {}) {
   try {
-    const url = `${BITRIX_DOMAIN}/rest${endpoint}`;
+    const url = `${BITRIX_DOMAIN}/rest/${endpoint}`;
     const response = await axios({
       url,
       method,
