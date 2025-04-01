@@ -1,4 +1,66 @@
 const axios = require("axios");
+require("dotenv").config();
+
+let BITRIX_ACCESS_TOKEN = process.env.BITRIX_ACCESS_TOKEN;
+let BITRIX_REFRESH_TOKEN = process.env.BITRIX_REFRESH_TOKEN;
+const BITRIX_DOMAIN = process.env.BITRIX_DOMAIN;
+
+async function refreshBitrixToken() {
+  try {
+    const url = `${BITRIX_DOMAIN}/oauth/token/`;
+    const params = {
+      grant_type: "refresh_token",
+      client_id: process.env.BITRIX_CLIENT_ID,
+      client_secret: process.env.BITRIX_CLIENT_SECRET,
+      refresh_token: BITRIX_REFRESH_TOKEN
+    };
+
+    const response = await axios.post(url, params);
+    if (response.data.access_token) {
+      BITRIX_ACCESS_TOKEN = response.data.access_token;
+      BITRIX_REFRESH_TOKEN = response.data.refresh_token;
+
+      console.log("✅ Token refreshed successfully!");
+
+      // Cập nhật biến môi trường để dùng ngay lập tức
+      process.env.BITRIX_ACCESS_TOKEN = BITRIX_ACCESS_TOKEN;
+      process.env.BITRIX_REFRESH_TOKEN = BITRIX_REFRESH_TOKEN;
+    } else {
+      throw new Error("Failed to refresh token");
+    }
+  } catch (error) {
+    console.error("❌ Error refreshing token:", error.message);
+  }
+}
+
+// 📌 Gửi request Bitrix API + kiểm tra lỗi 401
+async function bitrixRequest(endpoint, method = "POST", data = {}) {
+  try {
+    const url = `${BITRIX_DOMAIN}/rest${endpoint}`;
+    const response = await axios({
+      url,
+      method,
+      data,
+      headers: { Authorization: `Bearer ${BITRIX_ACCESS_TOKEN}` }
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.status === 401) {
+      console.warn("🔄 Token expired. Refreshing...");
+      await refreshBitrixToken();
+
+      // Gửi lại request với token mới
+      return bitrixRequest(endpoint, method, data);
+    } else {
+      console.error("❌ Bitrix API error:", error.message);
+      throw error;
+    }
+  }
+}
+
+module.exports = bitrixRequest;
+/*const axios = require("axios");
 
 let accessToken = "";
 let refreshToken = process.env.BITRIX_REFRESH_TOKEN;
