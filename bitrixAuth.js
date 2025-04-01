@@ -12,6 +12,96 @@ const REFRESH_COOLDOWN = 5 * 60 * 1000; // 5 phút cooldown
 async function refreshAccessToken() {
   const now = Date.now();
   if (now - lastRefreshTime < REFRESH_COOLDOWN) {
+    console.log("⏳ Token refresh on cooldown. Using existing token:", accessToken.slice(0, 10) + "...");
+    return;
+  }
+
+  try {
+    console.log("🔄 Refreshing Bitrix token...");
+    console.log("🔧 Using refresh_token:", refreshToken.slice(0, 10) + "...");
+    const response = await axios.post(`${BITRIX_DOMAIN}/oauth/token/`, {
+      grant_type: "refresh_token",
+      client_id: process.env.BITRIX_CLIENT_ID,
+      client_secret: process.env.BITRIX_CLIENT_SECRET,
+      refresh_token: refreshToken,
+    });
+
+    console.log("📥 Bitrix response:", response.data); // Log chi tiết response
+    accessToken = response.data.access_token;
+    refreshToken = response.data.refresh_token; // Cập nhật refresh token
+    lastRefreshTime = now;
+    console.log("✅ Token refreshed successfully!", accessToken.slice(0, 10) + "...");
+  } catch (error) {
+    console.error("❌ Error refreshing token:", error.response?.data || error.message);
+    throw new Error("🚨 Failed to refresh token. Check BITRIX_REFRESH_TOKEN, CLIENT_ID, CLIENT_SECRET in Railway Variables.");
+  }
+}
+
+// Hàm khởi tạo token khi bắt đầu
+async function initializeToken() {
+  if (!accessToken && refreshToken) {
+    console.log("ℹ️ No access token found. Initializing with refresh token...");
+    await refreshAccessToken();
+  } else if (!refreshToken) {
+    throw new Error("🚨 No BITRIX_REFRESH_TOKEN provided. Set it in Railway Variables.");
+  } else {
+    console.log("ℹ️ Using existing access token:", accessToken.slice(0, 10) + "...");
+  }
+}
+
+// Hàm gửi request tới Bitrix24
+async function bitrixRequest(method, httpMethod = "POST", params = {}) {
+  try {
+    if (!accessToken) {
+      await refreshAccessToken(); // Làm mới nếu token rỗng
+    }
+
+    const url = `${BITRIX_DOMAIN}/rest/${method}`;
+    console.log(`📤 Sending request to: ${url} with token: ${accessToken.slice(0, 10)}...`);
+    const response = await axios({
+      method: httpMethod,
+      url: url,
+      data: params,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.status === 401) {
+      console.warn("🔄 Token expired. Refreshing...");
+      await refreshAccessToken();
+      return bitrixRequest(method, httpMethod, params); // Thử lại với token mới
+    } else {
+      console.error("❌ Bitrix API error:", error.response?.data || error.message);
+      throw error;
+    }
+  }
+}
+
+// Khởi tạo token ngay khi module được load
+initializeToken().catch((err) => {
+  console.error(err.message);
+  process.exit(1); // Thoát nếu không thể khởi tạo token
+});
+
+module.exports = bitrixRequest;
+/*const axios = require("axios");
+require("dotenv").config();
+
+// Lấy thông tin từ biến môi trường
+const BITRIX_DOMAIN = process.env.BITRIX_DOMAIN;
+let accessToken = process.env.BITRIX_ACCESS_TOKEN || "";
+let refreshToken = process.env.BITRIX_REFRESH_TOKEN || "";
+let lastRefreshTime = 0; // Thời gian lần refresh cuối
+const REFRESH_COOLDOWN = 5 * 60 * 1000; // 5 phút cooldown
+
+// Hàm làm mới token
+async function refreshAccessToken() {
+  const now = Date.now();
+  if (now - lastRefreshTime < REFRESH_COOLDOWN) {
     console.log("⏳ Token refresh on cooldown. Using existing token.");
     return;
   }
