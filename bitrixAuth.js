@@ -1,39 +1,45 @@
 const axios = require("axios");
+const cron = require("node-cron");
 require("dotenv").config();
 
+// 🚀 Load biến môi trường từ Railway
 let BITRIX_ACCESS_TOKEN = process.env.BITRIX_ACCESS_TOKEN;
 let BITRIX_REFRESH_TOKEN = process.env.BITRIX_REFRESH_TOKEN;
 const BITRIX_DOMAIN = process.env.BITRIX_DOMAIN;
 
-// ⚙️ Thông tin Railway API
+// ⚙️ Railway API info
 const RAILWAY_API_KEY = process.env.RAILWAY_API_KEY;
 const PROJECT_ID = process.env.RAILWAY_PROJECT_ID;
 const ENV_ID = process.env.RAILWAY_ENV_ID;
+const SERVICE_ID = process.env.RAILWAY_SERVICE_ID;
 
+// 📌 Hàm refresh token
 async function refreshBitrixToken() {
   try {
+    console.log("🔄 Refreshing Bitrix token...");
+    
     const url = `${BITRIX_DOMAIN}/oauth/token/`;
     const params = {
       grant_type: "refresh_token",
       client_id: process.env.BITRIX_CLIENT_ID,
       client_secret: process.env.BITRIX_CLIENT_SECRET,
-      refresh_token: BITRIX_REFRESH_TOKEN
+      refresh_token: BITRIX_REFRESH_TOKEN,
     };
 
     const response = await axios.post(url, params);
+
     if (response.data.access_token) {
       BITRIX_ACCESS_TOKEN = response.data.access_token;
       BITRIX_REFRESH_TOKEN = response.data.refresh_token;
 
       console.log("✅ Token refreshed successfully!");
 
-      // Cập nhật vào biến môi trường của Node.js
-      process.env.BITRIX_ACCESS_TOKEN = BITRIX_ACCESS_TOKEN;
-      process.env.BITRIX_REFRESH_TOKEN = BITRIX_REFRESH_TOKEN;
+      // Cập nhật biến môi trường trên Railway
+      await updateRailwayVariable("BITRIX_ACCESS_TOKEN", BITRIX_ACCESS_TOKEN);
+      await updateRailwayVariable("BITRIX_REFRESH_TOKEN", BITRIX_REFRESH_TOKEN);
 
-      // 🔄 Gọi API cập nhật token vào Railway Variables
-      await updateRailwayToken("BITRIX_ACCESS_TOKEN", BITRIX_ACCESS_TOKEN);
-      await updateRailwayToken("BITRIX_REFRESH_TOKEN", BITRIX_REFRESH_TOKEN);
+      // Restart service để cập nhật token mới
+      await restartRailwayService();
     } else {
       throw new Error("Failed to refresh token");
     }
@@ -43,26 +49,34 @@ async function refreshBitrixToken() {
 }
 
 // 📌 Hàm cập nhật biến môi trường trên Railway
-async function updateRailwayToken(variableName, variableValue) {
+async function updateRailwayVariable(name, value) {
   try {
-    const response = await axios.put(
+    await axios.put(
       `https://backboard.railway.app/v1/projects/${PROJECT_ID}/environments/${ENV_ID}/variables`,
-      [{ name: variableName, value: variableValue }],
-      {
-        headers: {
-          Authorization: `Bearer ${RAILWAY_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
+      [{ name, value }],
+      { headers: { Authorization: `Bearer ${RAILWAY_API_KEY}` } }
     );
-
-    console.log(`✅ Updated Railway variable: ${variableName}`);
+    console.log(`✅ Updated Railway variable: ${name}`);
   } catch (error) {
-    console.error(`❌ Failed to update Railway variable: ${variableName}`, error.response?.data || error.message);
+    console.error(`❌ Error updating Railway variable: ${name}`, error.message);
   }
 }
 
-// 📌 Gửi request Bitrix API + kiểm tra lỗi 401
+// 📌 Hàm restart service trên Railway
+async function restartRailwayService() {
+  try {
+    await axios.post(
+      `https://backboard.railway.app/v1/projects/${PROJECT_ID}/services/${SERVICE_ID}/restart`,
+      {},
+      { headers: { Authorization: `Bearer ${RAILWAY_API_KEY}` } }
+    );
+    console.log("🔄 Service restarted successfully!");
+  } catch (error) {
+    console.error("❌ Error restarting Railway service:", error.message);
+  }
+}
+
+// 📌 Hàm gửi request đến Bitrix API
 async function bitrixRequest(endpoint, method = "POST", data = {}) {
   try {
     const url = `${BITRIX_DOMAIN}/rest/${endpoint}`;
@@ -70,7 +84,7 @@ async function bitrixRequest(endpoint, method = "POST", data = {}) {
       url,
       method,
       data,
-      headers: { Authorization: `Bearer ${BITRIX_ACCESS_TOKEN}` }
+      headers: { Authorization: `Bearer ${BITRIX_ACCESS_TOKEN}` },
     });
 
     return response.data;
@@ -88,6 +102,13 @@ async function bitrixRequest(endpoint, method = "POST", data = {}) {
   }
 }
 
+// 🔄 Chạy cron job để refresh token mỗi 50 phút
+cron.schedule("*/50 * * * *", async () => {
+  console.log("🔄 Running scheduled token refresh...");
+  await refreshBitrixToken();
+});
+
+// 🚀 Xuất các hàm ra ngoài
 module.exports = bitrixRequest;
 /*const axios = require("axios");
 
