@@ -1,5 +1,40 @@
 const axios = require("axios");
 require("dotenv").config();
+const BITRIX_DOMAIN = process.env.BITRIX_DOMAIN;
+const BITRIX_API_KEY = process.env.BITRIX_API_KEY;
+const BITRIX_ID = process.env.BITRIX_ID;
+// URL API cố định với webhook token
+const BITRIX_API_URL = `${BITRIX_DOMAIN}/rest/${BITRIX_ID}/${BITRIX_API_KEY}`;
+
+// Hàm gửi request tới Bitrix24
+async function bitrixRequest(method, httpMethod = "POST", params = {}) {
+  try {
+    const url = `${BITRIX_API_URL}/${method}`;
+    console.log(`📤 Sending request to: ${url}`);
+
+    const response = await axios({
+      method: httpMethod,
+      url: url,
+      data: params,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.data.error) {
+      throw new Error(`❌ Bitrix API error: ${response.data.error_description || response.data.error}`);
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error("❌ Bitrix API request failed:", error.response?.data || error.message);
+    throw error;
+  }
+}
+
+module.exports = bitrixRequest;
+/*const axios = require("axios");
+require("dotenv").config();
 
 // Lấy thông tin từ biến môi trường
 const BITRIX_DOMAIN = process.env.BITRIX_DOMAIN;
