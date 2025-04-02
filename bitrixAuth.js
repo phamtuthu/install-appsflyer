@@ -159,7 +159,7 @@ async function bitrixRequest(method, httpMethod = "POST", params = {}) {
   }
 }
 
-module.exports = bitrixRequest;*/
+module.exports = bitrixRequest;
 const axios = require("axios");
 require("dotenv").config();
 
@@ -220,8 +220,8 @@ async function bitrixRequest(method, httpMethod = "POST", params = {}) {
   }
 }
 
-module.exports = bitrixRequest;
-/*const axios = require("axios");
+module.exports = bitrixRequest;*/
+const axios = require("axios");
 
 let accessToken = "";
 let refreshToken = process.env.BITRIX_REFRESH_TOKEN;
