@@ -1,4 +1,4 @@
-const axios = require("axios");
+/*const axios = require("axios");
 require("dotenv").config();
 
 // Lấy thông tin từ biến môi trường
@@ -159,8 +159,8 @@ async function bitrixRequest(method, httpMethod = "POST", params = {}) {
   }
 }
 
-module.exports = bitrixRequest;
-/*const axios = require("axios");
+module.exports = bitrixRequest;*/
+const axios = require("axios");
 require("dotenv").config();
 
 // Lấy thông tin từ biến môi trường
