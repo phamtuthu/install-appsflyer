@@ -10,7 +10,7 @@ const BITRIX_API_URL = `${BITRIX_DOMAIN}/rest/${BITRIX_ID}/${BITRIX_API_KEY}`;
 async function bitrixRequest(method, httpMethod = "POST", params = {}) {
   try {
     const url = `${BITRIX_API_URL}/${method}`;
-    console.log(`📤 Sending request to: ${url}`);
+ //   console.log(`📤 Sending request to: ${url}`);
 
     const response = await axios({
       method: httpMethod,
