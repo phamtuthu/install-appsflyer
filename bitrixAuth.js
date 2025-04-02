@@ -1,4 +1,4 @@
-/*const axios = require("axios");
+const axios = require("axios");
 require("dotenv").config();
 
 // Lấy thông tin từ biến môi trường
@@ -221,7 +221,7 @@ async function bitrixRequest(method, httpMethod = "POST", params = {}) {
 }
 
 module.exports = bitrixRequest;*/
-const axios = require("axios");
+/*const axios = require("axios");
 
 let accessToken = "";
 let refreshToken = process.env.BITRIX_REFRESH_TOKEN;
