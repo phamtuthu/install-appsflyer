@@ -1,37 +1,64 @@
-import express from 'express';
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import dotenv from 'dotenv';
-import hc from '@api/hc'; // giả sử bạn có thư viện SDK riêng
 
-dotenv.config(); // Load biến môi trường từ .env
+dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-// Xác thực với AppsFlyer token
-hc.auth(process.env.APPSFLYER_TOKEN);
+// === Cấu hình ===
+const API_TOKEN = process.env.APPSFLYER_TOKEN;
+const APP_ID = process.env.APPSFLYER_APP_ID;
+const TIMEZONE = 'Asia%2FHo_Chi_Minh';
+const ADDITIONAL_FIELDS = 'blocked_reason_rule,store_reinstall_date';
 
-app.get('/fetch', async (req, res) => {
+function getDateStrings() {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const toISODate = (date) => date.toISOString().split('T')[0];
+  return {
+    from: toISODate(yesterday),
+    to: toISODate(today)
+  };
+}
+
+async function fetchInstalls() {
+  const { from, to } = getDateStrings();
+  const url = `https://hq1.appsflyer.com/api/raw-data/export/app/${APP_ID}/installs_report/v5`;
+
   try {
-    const { from = '2025-07-01', to = '2025-07-02', media_source = 'facebook' } = req.query;
-
-    const result = await hc.getAppIdInstalls_reportV5({
-      from,
-      to,
-      media_source,
-      timezone: 'Asia%2FHo_Chi_Minh',
-      additional_fields: process.env.APPSFLYER_FIELDS,
-      'app-id': process.env.APPSFLYER_APP_ID,
-      accept: 'text/csv',
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`
+      },
+      params: {
+        from,
+        to,
+        timezone: TIMEZONE,
+        additional_fields: ADDITIONAL_FIELDS
+      },
+      responseType: 'stream'
     });
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.send(result.data);
-  } catch (error) {
-    console.error(error?.response?.data || error.message);
-    res.status(500).send('Lỗi khi gọi AppsFlyer API');
-  }
-});
+    const filePath = path.join(__dirname, `installs_${from}.csv`);
+    const writer = fs.createWriteStream(filePath);
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+    response.data.pipe(writer);
+
+    writer.on('finish', () => {
+      console.log(`✅ Saved report to ${filePath}`);
+    });
+    writer.on('error', (err) => {
+      console.error('❌ Error writing file:', err);
+    });
+  } catch (error) {
+    console.error('❌ Error fetching installs:', error.response?.data || error.message);
+  }
+}
+
+fetchInstalls();
