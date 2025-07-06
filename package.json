@@ -1,9 +1,14 @@
 {
-  "name": "af-pullapi",
+  "name": "appsflyer-api-proxy",
+  "version": "1.0.0",
   "type": "module",
-  "scripts": { "start": "node index.js" },
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
-    "axios": "^1.6.8",
-    "googleapis": "^133.0.0"
+    "@api/hc": "^1.0.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.19.2"
   }
 }
