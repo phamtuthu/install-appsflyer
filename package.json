@@ -1,19 +1,9 @@
 {
-  "name": "uneven-dawn-wolf",
-  "version": "1.0.0",
-  "description": "App to handle Bitrix24 events",
-  "main": "app.js",
+  "name": "af-pullapi",
+  "type": "module",
+  "scripts": { "start": "node index.js" },
   "dependencies": {
-    "express": "^4.17.1",
-    "body-parser": "^1.19.0",
-    "dotenv": "^16.0.3",
-    "axios": "^1.4.0",
-    "node-cron": "^3.0.0"
-  },
-  "engines": {
-    "node": ">=10.0.0"
-  },
-  "scripts": {
-    "start": "node app.js"
+    "axios": "^1.6.8",
+    "googleapis": "^133.0.0"
   }
 }
